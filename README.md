@@ -89,6 +89,30 @@ setInterval(() => {
 }, 1000);
 ```
 
+#### Changing Color
+
+Change the animation default colors using parateters colorPrimary and colorSecondery. The colors should be passed as HEX ('#ffffff').
+
+```javascript
+chalkAnimation.pulse('Lorem ipsum', 2, '#ffffff', '#28CDE8'); // White text that pulse blue
+```
+
+```javascript
+chalkAnimation.glitch("Lorem ipsum dolor sit amet",1, '#ffffff', '#28CDE8'); // Glitch white text whit glitch characters blue
+```
+
+```javascript
+chalkAnimation.radar("Lorem ipsum dolor sit amet",1, '#28CDE8', 0.5); // Radar shaded from blue to black and have 50% of the string showned
+```
+
+```javascript
+chalkAnimation.neon("Lorem ipsum dolor sit amet",1, '#ffffff', '#28CDE8'); // Neon white text that shine blue
+```
+
+```javascript
+chalkAnimation.karaoke("Lorem ipsum dolor sit amet",1, '#ffffff', '#28CDE8'); // karaoke white text that fill blue
+```
+
 #### Manual rendering
 
 Manually render frames with `render()`, or get the content of the next frame with `frame()`

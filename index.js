@@ -19,6 +19,17 @@ for (const k in consoleFunctions) {
 	};
 }
 
+function hexToRgb(hex) {
+	if (hex.substring(0, 1) === '#') {
+		hex = hex.substring(1);
+	}
+
+	const r = parseInt(hex.substring(0, 2), 16);
+	const g = parseInt(hex.substring(2, 4), 16);
+	const b = parseInt(hex.substring(4, 6), 16);
+	return {r, g, b};
+}
+
 const glitchChars = 'x*0987654321[]0-~@#(____!!!!\\|?????....0000\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t';
 const longHsv = {interpolation: 'hsv', hsvSpin: 'long'};
 
@@ -29,12 +40,12 @@ const effects = {
 		const rightColor = {h: (hue + 1) % 360, s: 1, v: 1};
 		return gradient(leftColor, rightColor)(str, longHsv);
 	},
-	pulse(str, frame) {
+	pulse(str, frame, colorPrimary = '#ff1010', colorSecondary = '#e6e6e6') {
 		frame = (frame % 120) + 1;
 		const transition = 6;
 		const duration = 10;
-		const on = '#ff1010';
-		const off = '#e6e6e6';
+		const on = colorSecondary;
+		const off = colorPrimary;
 
 		if (frame >= (2 * transition) + duration) {
 			return chalk.hex(off)(str); // All white
@@ -60,17 +71,19 @@ const effects = {
 
 		return g(str);
 	},
-	glitch(str, frame) {
+	glitch(str, frame, colorPrimary = '#ffffff', colorSecondary = '#ffffff') {
 		if ((frame % 2) + (frame % 3) + (frame % 11) + (frame % 29) + (frame % 37) > 52) {
 			return str.replace(/[^\r\n]/g, ' ');
 		}
+
+		chalk.hex(colorPrimary)(str);
 
 		const chunkSize = Math.max(3, Math.round(str.length * 0.02));
 		const chunks = [];
 
 		for (let i = 0, length = str.length; i < length; i++) {
 			const skip = Math.round(Math.max(0, (Math.random() - 0.8) * chunkSize));
-			chunks.push(str.substring(i, i + skip).replace(/[^\r\n]/g, ' '));
+			chunks.push(chalk.hex(colorSecondary)(str.substring(i, i + skip).replace(/[^\r\n]/g, ' ')));
 			i += skip;
 			if (str[i]) {
 				if (str[i] !== '\n' && str[i] !== '\r' && Math.random() > 0.995) {
@@ -90,8 +103,14 @@ const effects = {
 
 		return result;
 	},
-	radar(str, frame) {
-		const depth = Math.floor(Math.min(str.length, str.length * 0.2));
+	radar(str, frame, colorPrimary = '#ffffff', colorSecondary = '#000000', visivelPercentageOfWord = 0.2) {
+		const depth = Math.floor(Math.min(str.length, str.length * visivelPercentageOfWord));
+		const color = hexToRgb(colorPrimary);
+
+		hexToRgb(colorSecondary);
+
+		// TODO: Mess with the config to reproduce full
+		// gradiente between white and black for shaded
 		const step = Math.floor(255 / depth);
 
 		const globalPos = frame % (str.length + depth);
@@ -100,8 +119,9 @@ const effects = {
 		for (let i = 0, length = str.length; i < length; i++) {
 			const pos = -(i - globalPos);
 			if (pos > 0 && pos <= depth - 1) {
-				const shade = (depth - pos) * step;
-				chars.push(chalk.rgb(shade, shade, shade)(str[i]));
+				const shade = (((depth - pos) * step) / 255).toFixed(2);
+
+				chars.push(chalk.rgb(Math.floor(color.r * shade), Math.floor(color.g * shade), Math.floor(color.b * shade))(str[i]));
 			} else {
 				chars.push(' ');
 			}
@@ -109,20 +129,20 @@ const effects = {
 
 		return chars.join('');
 	},
-	neon(str, frame) {
-		const color = (frame % 2 === 0) ? chalk.dim.rgb(88, 80, 85) : chalk.bold.rgb(213, 70, 242);
+	neon(str, frame, colorPrimary = '#585055', colorSecondary = '#D546F2') {
+		const color = (frame % 2 === 0) ? chalk.dim.hex(colorPrimary) : chalk.bold.hex(colorSecondary);
 		return color(str);
 	},
-	karaoke(str, frame) {
+	karaoke(str, frame, colorPrimary = '#ffffff', colorSecondary = '#FFBB00') {
 		const chars = (frame % (str.length + 20)) - 10;
 		if (chars < 0) {
-			return chalk.white(str);
+			return chalk.hex(colorPrimary)(str);
 		}
-		return chalk.rgb(255, 187, 0).bold(str.substr(0, chars)) + chalk.white(str.substr(chars));
+		return chalk.hex(colorSecondary).bold(str.substr(0, chars)) + chalk.white(str.substr(chars));
 	}
 };
 
-function animateString(str, effect, delay, speed) {
+function animateString(str, effect, delay, speed, colorPrimary, colorSecondary, visivelPercentageOfWord) {
 	stopLastAnimation();
 
 	speed = speed === undefined ? 1 : parseFloat(speed);
@@ -151,7 +171,7 @@ function animateString(str, effect, delay, speed) {
 		},
 		frame() {
 			this.f++;
-			return '\u001B[' + this.lines + 'F\u001B[G\u001B[2K' + this.text.map(str => effect(str, this.f)).join('\n');
+			return '\u001B[' + this.lines + 'F\u001B[G\u001B[2K' + this.text.map(str => effect(str, this.f, colorPrimary, colorSecondary, visivelPercentageOfWord)).join('\n');
 		},
 		replace(str) {
 			this.text = str.split(/\r\n|\r|\n/);
@@ -184,11 +204,11 @@ function stopLastAnimation() {
 
 const chalkAnimation = {
 	rainbow: (str, speed) => animateString(str, effects.rainbow, 15, speed),
-	pulse: (str, speed) => animateString(str, effects.pulse, 16, speed),
-	glitch: (str, speed) => animateString(str, effects.glitch, 55, speed),
-	radar: (str, speed) => animateString(str, effects.radar, 50, speed),
-	neon: (str, speed) => animateString(str, effects.neon, 500, speed),
-	karaoke: (str, speed) => animateString(str, effects.karaoke, 50, speed)
+	pulse: (str, speed, colorPrimary, colorSecondary) => animateString(str, effects.pulse, 16, speed, colorPrimary, colorSecondary),
+	glitch: (str, speed, colorPrimary, colorSecondary) => animateString(str, effects.glitch, 55, speed, colorPrimary, colorSecondary),
+	radar: (str, speed, colorPrimary, visivelPercentageOfWord) => animateString(str, effects.radar, 50, speed, colorPrimary, '', visivelPercentageOfWord),
+	neon: (str, speed, colorPrimary, colorSecondary) => animateString(str, effects.neon, 500, speed, colorPrimary, colorSecondary),
+	karaoke: (str, speed, colorPrimary, colorSecondary) => animateString(str, effects.karaoke, 50, speed, colorPrimary, colorSecondary)
 };
 
 export default chalkAnimation;
